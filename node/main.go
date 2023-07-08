@@ -3,7 +3,6 @@ package node
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -69,8 +68,8 @@ func (n *Node) Run() error {
 
         handler, ok := n.handlers[recv_msg.Body.Type]
         if !ok {
-            err_msg := fmt.Sprintf("No handler for message type '%s'", recv_msg.Body.Type)
-            return errors.New(err_msg)
+            return fmt.Errorf("No handler for message type '%s'",
+                recv_msg.Body.Type)
         }
 
         if err := handler(recv_msg); err != nil {
@@ -83,7 +82,7 @@ func (n *Node) Run() error {
 
 func (n *Node) On(msg_type string, handler Handler) error {
     if _, exists := n.handlers[msg_type]; exists {
-        return errors.New("Handler for this message type already exists.")
+        return fmt.Errorf("Handler for this message type already exists.")
     }
     n.handlers[msg_type] = handler
     return nil
