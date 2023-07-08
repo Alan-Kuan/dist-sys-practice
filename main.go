@@ -19,10 +19,13 @@ func main() {
     }
 
     n.On("echo", func (msg node.Message) error {
-        n.Reply(msg, node.MessageBody{
+        err := n.Reply(msg, node.MessageBody{
             Type: "echo_ok",
             Echo: msg.Body.Echo,
         })
+        if err != nil {
+            return err
+        }
         return nil
     })
 

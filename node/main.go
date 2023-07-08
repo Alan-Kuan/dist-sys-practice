@@ -26,11 +26,12 @@ type Message struct {
 type Handler func(Message) error
 
 type Node struct {
-    nodeId      string
-    nodeIds     []string
-    nextMsgId   int
-    lock        *sync.Mutex
-    handlers    map[string]Handler
+    nodeId          string
+    nodeIds         []string
+    nextMsgId       int
+    nextMsgIdLock   *sync.Mutex
+    handlers        map[string]Handler
+    wg              *sync.WaitGroup
 }
 
 func NewNode() (*Node, error) {
@@ -38,8 +39,9 @@ func NewNode() (*Node, error) {
         nodeId: "",
         nodeIds: nil,
         nextMsgId: 0,
-        lock: new(sync.Mutex),
+        nextMsgIdLock: new(sync.Mutex),
         handlers: map[string]Handler{},
+        wg: new(sync.WaitGroup),
     }
 
     err := n.On("init", func (msg Message) error {
@@ -72,9 +74,17 @@ func (n *Node) Run() error {
                 recv_msg.Body.Type)
         }
 
-        if err := handler(recv_msg); err != nil {
-            return err
-        }
+        n.wg.Add(1)
+        go func() {
+            defer n.wg.Done()
+
+            if err := handler(recv_msg); err != nil {
+                fmt.Fprintf(os.Stderr,
+                    "An error occurred when handling '%s' message: %s\n",
+                    recv_msg.Body.Type, err)
+            }
+        }()
+        n.wg.Wait()
     }
 
     return nil
@@ -94,8 +104,10 @@ func (n *Node) Reply(recv_msg Message, resp_body MessageBody) error {
 }
 
 func (n *Node) Send(dest string, body MessageBody) error {
+    n.nextMsgIdLock.Lock()
     body.MsgId = n.nextMsgId
     n.nextMsgId++
+    n.nextMsgIdLock.Unlock()
 
     resp_msg := Message{
         Src: n.nodeId,
