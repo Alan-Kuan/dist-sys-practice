@@ -10,11 +10,9 @@ import (
 
 func NewNode() *Node {
     n := &Node{
-        nodeId: "",
-        nodeIds: nil,
-        nextMsgId: 0,
         nextMsgIdLock: new(sync.Mutex),
-        handlers: map[string]Handler{},
+        logLock: new(sync.Mutex),
+        handlers: make(map[string]Handler),
         wg: new(sync.WaitGroup),
     }
 
