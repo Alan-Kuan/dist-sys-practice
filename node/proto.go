@@ -1,4 +1,19 @@
-package message
+package node
+
+import (
+    "sync"
+)
+
+type Handler func(Message) error
+
+type Node struct {
+    nodeId          string
+    nodeIds         []string
+    nextMsgId       int
+    nextMsgIdLock   *sync.Mutex
+    handlers        map[string]Handler
+    wg              *sync.WaitGroup
+}
 
 type Message struct {
     Src     string      `json:"src"`
