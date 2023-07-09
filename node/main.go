@@ -26,6 +26,9 @@ func NewNode() (*Node, error) {
     if err = n.on("echo", n.echoHandler); err != nil {
         return nil, err
     }
+    if err = n.on("topology", n.topologyHandler); err != nil {
+        return nil, err
+    }
 
     return n, nil
 }

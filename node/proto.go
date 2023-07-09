@@ -13,6 +13,7 @@ type Node struct {
     nextMsgIdLock   *sync.Mutex
     handlers        map[string]Handler
     wg              *sync.WaitGroup
+    neighbors       []string
 }
 
 type Message struct {

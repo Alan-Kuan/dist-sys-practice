@@ -15,3 +15,11 @@ func (n *Node) echoHandler(msg Message) error {
         Echo: msg.Body.Echo,
     })
 }
+
+func (n *Node) topologyHandler(msg Message) error {
+    n.neighbors = msg.Body.Topology[n.nodeId]
+
+    return n.reply(msg, MessageBody{
+        Type: "topology_ok",
+    })
+}
