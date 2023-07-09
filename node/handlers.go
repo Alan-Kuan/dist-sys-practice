@@ -18,6 +18,7 @@ func (n *Node) echoHandler(msg Message) error {
 
 func (n *Node) topologyHandler(msg Message) error {
     n.neighbors = msg.Body.Topology[n.nodeId]
+    n.log("My neighbors: %v\n", n.neighbors)
 
     return n.reply(msg, MessageBody{
         Type: "topology_ok",
