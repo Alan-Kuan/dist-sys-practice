@@ -6,24 +6,11 @@ import (
 	"fmt"
 	"os"
 	"sync"
+
+    "alan-kuan/dist-sys-practice/message"
 )
 
-type MessageBody struct {
-    MsgId       int         `json:"msg_id"`
-    Type        string      `json:"type"`
-    NodeId      string      `json:"node_id,omitempty"`
-    NodeIds     []string    `json:"node_ids,omitempty"`
-    InReplyTo   *int        `json:"in_reply_to,omitempty"`
-    Echo        string      `json:"echo,omitempty"`
-}
-
-type Message struct {
-    Src     string      `json:"src"`
-    Dest    string      `json:"dest"`
-    Body    MessageBody `json:"body"`
-}
-
-type Handler func(Message) error
+type Handler func(message.Message) error
 
 type Node struct {
     nodeId          string
@@ -44,11 +31,11 @@ func NewNode() (*Node, error) {
         wg: new(sync.WaitGroup),
     }
 
-    err := n.On("init", func (msg Message) error {
+    err := n.On("init", func (msg message.Message) error {
         n.nodeId = msg.Body.NodeId
         n.nodeIds = msg.Body.NodeIds
 
-        return n.Reply(msg, MessageBody{ Type: "init_ok" })
+        return n.Reply(msg, message.MessageBody{ Type: "init_ok" })
     })
     if err != nil {
         return nil, err
@@ -61,7 +48,7 @@ func (n *Node) Run() error {
     scanner := bufio.NewScanner(os.Stdin)
 
     for scanner.Scan() {
-        var recv_msg Message
+        var recv_msg message.Message
 
         err := json.Unmarshal(scanner.Bytes(), &recv_msg)
         if err != nil {
@@ -98,18 +85,18 @@ func (n *Node) On(msg_type string, handler Handler) error {
     return nil
 }
 
-func (n *Node) Reply(recv_msg Message, resp_body MessageBody) error {
+func (n *Node) Reply(recv_msg message.Message, resp_body message.MessageBody) error {
     resp_body.InReplyTo = &recv_msg.Body.MsgId
     return n.Send(recv_msg.Src, resp_body)
 }
 
-func (n *Node) Send(dest string, body MessageBody) error {
+func (n *Node) Send(dest string, body message.MessageBody) error {
     n.nextMsgIdLock.Lock()
     body.MsgId = n.nextMsgId
     n.nextMsgId++
     n.nextMsgIdLock.Unlock()
 
-    resp_msg := Message{
+    resp_msg := message.Message{
         Src: n.nodeId,
         Dest: dest,
         Body: body,
