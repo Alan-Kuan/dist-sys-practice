@@ -22,6 +22,8 @@ type Node struct {
 }
 
 func NewNode() (*Node, error) {
+    var err error
+
     n := &Node{
         nodeId: "",
         nodeIds: nil,
@@ -31,11 +33,23 @@ func NewNode() (*Node, error) {
         wg: new(sync.WaitGroup),
     }
 
-    err := n.On("init", func (msg message.Message) error {
+    err = n.on("init", func (msg message.Message) error {
         n.nodeId = msg.Body.NodeId
         n.nodeIds = msg.Body.NodeIds
 
-        return n.Reply(msg, message.MessageBody{ Type: "init_ok" })
+        return n.reply(msg, message.MessageBody{
+            Type: "init_ok",
+        })
+    })
+    if err != nil {
+        return nil, err
+    }
+
+    err = n.on("echo", func (msg message.Message) error {
+        return n.reply(msg, message.MessageBody{
+            Type: "echo_ok",
+            Echo: msg.Body.Echo,
+        })
     })
     if err != nil {
         return nil, err
@@ -77,7 +91,7 @@ func (n *Node) Run() error {
     return nil
 }
 
-func (n *Node) On(msg_type string, handler Handler) error {
+func (n *Node) on(msg_type string, handler Handler) error {
     if _, exists := n.handlers[msg_type]; exists {
         return fmt.Errorf("Handler for this message type already exists.")
     }
@@ -85,12 +99,12 @@ func (n *Node) On(msg_type string, handler Handler) error {
     return nil
 }
 
-func (n *Node) Reply(recv_msg message.Message, resp_body message.MessageBody) error {
+func (n *Node) reply(recv_msg message.Message, resp_body message.MessageBody) error {
     resp_body.InReplyTo = &recv_msg.Body.MsgId
-    return n.Send(recv_msg.Src, resp_body)
+    return n.send(recv_msg.Src, resp_body)
 }
 
-func (n *Node) Send(dest string, body message.MessageBody) error {
+func (n *Node) send(dest string, body message.MessageBody) error {
     n.nextMsgIdLock.Lock()
     body.MsgId = n.nextMsgId
     n.nextMsgId++
