@@ -8,9 +8,7 @@ import (
 	"sync"
 )
 
-func NewNode() (*Node, error) {
-    var err error
-
+func NewNode() *Node {
     n := &Node{
         nodeId: "",
         nodeIds: nil,
@@ -20,17 +18,11 @@ func NewNode() (*Node, error) {
         wg: new(sync.WaitGroup),
     }
 
-    if err = n.on("init", n.initHandler); err != nil {
-        return nil, err
-    }
-    if err = n.on("echo", n.echoHandler); err != nil {
-        return nil, err
-    }
-    if err = n.on("topology", n.topologyHandler); err != nil {
-        return nil, err
-    }
+    n.handlers["init"] = n.initHandler
+    n.handlers["echo"] = n.echoHandler
+    n.handlers["topology"] = n.topologyHandler
 
-    return n, nil
+    return n
 }
 
 func (n *Node) Run() error {
@@ -69,14 +61,6 @@ func (n *Node) log(msg string, a ...any) {
     n.logLock.Lock()
     fmt.Fprintf(os.Stderr, msg, a...)
     n.logLock.Unlock()
-}
-
-func (n *Node) on(msg_type string, handler Handler) error {
-    if _, exists := n.handlers[msg_type]; exists {
-        return fmt.Errorf("Handler for this message type already exists.")
-    }
-    n.handlers[msg_type] = handler
-    return nil
 }
 
 func (n *Node) reply(recv_msg Message, resp_body MessageBody) error {
