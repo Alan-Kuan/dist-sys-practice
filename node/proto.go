@@ -9,10 +9,15 @@ type Handler func(Message) error
 type Node struct {
     nodeId          string
     nodeIds         []string
+
     nextMsgId       int
     nextMsgIdLock   *sync.Mutex
+
+    logLock         *sync.Mutex
+
     handlers        map[string]Handler
     wg              *sync.WaitGroup
+
     neighbors       []string
 }
 

@@ -55,8 +55,7 @@ func (n *Node) Run() error {
             defer n.wg.Done()
 
             if err := handler(recv_msg); err != nil {
-                fmt.Fprintf(os.Stderr,
-                    "An error occurred when handling '%s' message: %s\n",
+                n.log("An error occurred when handling '%s' message: %s\n",
                     recv_msg.Body.Type, err)
             }
         }()
@@ -64,6 +63,12 @@ func (n *Node) Run() error {
     }
 
     return nil
+}
+
+func (n *Node) log(msg string, a ...any) {
+    n.logLock.Lock()
+    fmt.Fprintf(os.Stderr, msg, a...)
+    n.logLock.Unlock()
 }
 
 func (n *Node) on(msg_type string, handler Handler) error {
