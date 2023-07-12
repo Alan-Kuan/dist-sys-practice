@@ -1,7 +1,8 @@
 package node
 
 import (
-    "sync"
+	"encoding/json"
+	"sync"
 )
 
 type Handler func(Message) error
@@ -19,32 +20,79 @@ type Node struct {
     wg              *sync.WaitGroup
 
     neighbors       []string
+    
+    messages        []any
+    messagesLock    *sync.Mutex
 }
 
 type Message struct {
-    Src     string      `json:"src"`
-    Dest    string      `json:"dest"`
-    Body    MessageBody `json:"body"`
+    Src     string          `json:"src"`
+    Dest    string          `json:"dest"`
+    Body    json.RawMessage `json:"body"`
 }
 
-type MessageBody struct {
-    MsgId       int                 `json:"msg_id"`
-    Type        string              `json:"type"`
-    InReplyTo   *int                `json:"in_reply_to,omitempty"`
+type BaseMessageBody struct {
+    MsgId       int     `json:"msg_id"`
+    Type        string  `json:"type"`
+    InReplyTo   int     `json:"in_reply_to,omitempty"`
+}
 
-    // init
-    NodeId      string              `json:"node_id,omitempty"`
-    NodeIds     []string            `json:"node_ids,omitempty"`
+type InitMessageBody struct {
+    BaseMessageBody
+    NodeId      string      `json:"node_id"`
+    NodeIds     []string    `json:"node_ids"`
+}
 
-    // echo
-    Echo        string              `json:"echo,omitempty"`
+type EchoMessageBody struct {
+    BaseMessageBody
+    Echo    string  `json:"echo"`
+}
 
-    // topology
-    Topology    map[string][]string `json:"topology,omitempty"`
+type TopologyMessageBody struct {
+    BaseMessageBody
+    Topology    map[string][]string `json:"topology"`
+}
 
-    // broadcast
-    Message     interface {}        `json:"message,omitempty"`
+type BroadcastMessageBody struct {
+    BaseMessageBody
+    Message     any     `json:"message"`
+}
 
-    // read
-    Messages    []interface {}      `json:"messages,omitempty"`
+type ReadMessageBody struct {
+    BaseMessageBody
+    Messages    []any   `json:"messages"`
+}
+
+type MessageBody interface {
+    BaseMessageBody |
+    InitMessageBody |
+    EchoMessageBody |
+    TopologyMessageBody |
+    BroadcastMessageBody |
+    ReadMessageBody
+}
+
+func decodeMessageBody[B MessageBody](raw_body json.RawMessage) (*B, error) {
+    var body B
+
+    if err := json.Unmarshal(raw_body, &body); err != nil {
+        return nil, err
+    }
+
+    return &body, nil
+}
+
+func encodeMessageBodyToMap[B MessageBody](body *B) (*map[string]any, error) {
+    var map_body map[string]any
+
+    raw_body, err := json.Marshal(*body)
+    if err != nil {
+        return nil, err
+    }
+
+    if err := json.Unmarshal(raw_body, &map_body); err != nil {
+        return nil, err
+    }
+
+    return &map_body, nil
 }
