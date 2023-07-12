@@ -14,6 +14,7 @@ func NewNode() *Node {
         logLock: new(sync.Mutex),
         handlers: make(map[string]Handler),
         wg: new(sync.WaitGroup),
+        messages: make(map[any]struct{}),
         messagesLock: new(sync.Mutex),
     }
 
@@ -74,11 +75,8 @@ func (n *Node) reply(recv_msg Message, map_resp_body *map[string]any) error {
         return err
     }
 
-    (*map_resp_body)["in_reply_to"] = recv_body.MsgId
-    return n.send(recv_msg.Src, map_resp_body)
-}
+    (*map_resp_body)["in_reply_to"] = *recv_body.MsgId
 
-func (n *Node) send(dest string, map_resp_body *map[string]any) error {
     n.nextMsgIdLock.Lock()
     (*map_resp_body)["msg_id"] = n.nextMsgId
     n.nextMsgId++
@@ -89,6 +87,10 @@ func (n *Node) send(dest string, map_resp_body *map[string]any) error {
         return err
     }
 
+    return n.send(recv_msg.Src, raw_resp_body)
+}
+
+func (n *Node) send(dest string, raw_resp_body json.RawMessage) error {
     resp_msg := Message{
         Src: n.nodeId,
         Dest: dest,

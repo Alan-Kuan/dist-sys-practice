@@ -1,5 +1,7 @@
 package node
 
+import "encoding/json"
+
 func (n *Node) initHandler(msg Message) error {
     recv_body, err := decodeMessageBody[InitMessageBody](msg.Body)
     if err != nil {
@@ -65,9 +67,32 @@ func (n *Node) broadcastHandler(msg Message) error {
     }
 
     n.messagesLock.Lock()
-    n.messages = append(n.messages, recv_body.Message)
+    if _, exists := n.messages[recv_body.Message]; exists {
+        n.messagesLock.Unlock()
+        return nil
+    }
+    n.messages[recv_body.Message] = struct{}{}
     n.messagesLock.Unlock()
+
     n.log("Received message: %v\n", recv_body.Message)
+
+    gossip_body := BroadcastMessageBody{
+        BaseMessageBody: BaseMessageBody{ Type: "broadcast" },
+        Message: recv_body.Message,
+    }
+    raw_gossip_body, err := json.Marshal(&gossip_body)
+    if err != nil {
+        return err
+    }
+
+    for _, neighbor := range n.neighbors {
+        n.send(neighbor, raw_gossip_body)
+    }
+
+    // don't reply to messages from other server nodes
+    if recv_body.MsgId == nil {
+        return nil
+    }
 
     resp_body := BaseMessageBody {
         Type: "broadcast_ok",
@@ -84,7 +109,12 @@ func (n *Node) readHandler(msg Message) error {
     messages := make([]any, len(n.messages))
 
     n.messagesLock.Lock()
-    copy(messages, n.messages)
+    for message := range n.messages {
+        if message == nil {
+            continue
+        }
+        messages = append(messages, message)
+    }
     n.messagesLock.Unlock()
 
     resp_body := ReadMessageBody{

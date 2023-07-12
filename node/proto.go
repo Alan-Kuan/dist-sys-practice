@@ -21,7 +21,7 @@ type Node struct {
 
     neighbors       []string
     
-    messages        []any
+    messages        map[any]struct{}  // work as a set
     messagesLock    *sync.Mutex
 }
 
@@ -32,9 +32,9 @@ type Message struct {
 }
 
 type BaseMessageBody struct {
-    MsgId       int     `json:"msg_id"`
+    MsgId       *int    `json:"msg_id,omitempty"`
     Type        string  `json:"type"`
-    InReplyTo   int     `json:"in_reply_to,omitempty"`
+    InReplyTo   *int    `json:"in_reply_to,omitempty"`
 }
 
 type InitMessageBody struct {
