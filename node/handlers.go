@@ -109,13 +109,10 @@ func (n *Node) broadcastHandler(msg Message) error {
 }
 
 func (n *Node) readHandler(msg Message) error {
-    messages := make([]any, len(n.messages))
+    messages := make([]any, 0)
 
     n.messagesLock.Lock()
     for message := range n.messages {
-        if message == nil {
-            continue
-        }
         messages = append(messages, message)
     }
     n.messagesLock.Unlock()
