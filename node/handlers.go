@@ -86,6 +86,9 @@ func (n *Node) broadcastHandler(msg Message) error {
     }
 
     for _, neighbor := range n.neighbors {
+        if neighbor == msg.Src {
+            continue
+        }
         n.send(neighbor, raw_gossip_body)
     }
 
