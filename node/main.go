@@ -57,8 +57,8 @@ func (n *Node) Run() error {
                     recv_body.Type, err)
             }
         }()
-        n.wg.Wait()
     }
+    n.wg.Wait()
 
     return nil
 }
