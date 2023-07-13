@@ -13,6 +13,7 @@ func NewNode() *Node {
         nextMsgIdLock: new(sync.Mutex),
         logLock: new(sync.Mutex),
         handlers: make(map[string]Handler),
+        callbacks: make(map[int]Handler),
         wg: new(sync.WaitGroup),
         messages: make(map[any]struct{}),
         messagesLock: new(sync.Mutex),
@@ -42,8 +43,15 @@ func (n *Node) Run() error {
             return err
         }
 
-        handler, ok := n.handlers[recv_body.Type]
-        if !ok {
+        var handler Handler
+
+        if recv_body.InReplyTo != nil {
+            handler, _ = n.callbacks[*recv_body.InReplyTo]
+        }
+        if handler == nil {
+            handler, _ = n.handlers[recv_body.Type]
+        }
+        if handler == nil {
             return fmt.Errorf("No handler for message type '%s'",
                 recv_body.Type)
         }
@@ -67,6 +75,23 @@ func (n *Node) Run() error {
     return nil
 }
 
+func (n *Node) rpc(dest string, map_body *map[string]any, handler Handler) error {
+    n.nextMsgIdLock.Lock()
+    msg_id := n.nextMsgId
+    n.nextMsgId++
+    n.nextMsgIdLock.Unlock()
+
+    n.callbacks[msg_id] = handler
+    (*map_body)["msg_id"] = msg_id
+
+    raw_body, err := json.Marshal(*map_body)
+    if err != nil {
+        return err
+    }
+
+    return n.send(dest, raw_body)
+}
+
 func (n *Node) log(msg string, a ...any) {
     n.logLock.Lock()
     fmt.Fprintf(os.Stderr, msg, a...)
@@ -86,7 +111,7 @@ func (n *Node) reply(recv_msg Message, map_resp_body *map[string]any) error {
     n.nextMsgId++
     n.nextMsgIdLock.Unlock()
 
-    raw_resp_body, err := json.Marshal(map_resp_body)
+    raw_resp_body, err := json.Marshal(*map_resp_body)
     if err != nil {
         return err
     }

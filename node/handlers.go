@@ -1,6 +1,9 @@
 package node
 
-import "encoding/json"
+import (
+	"sync"
+	"time"
+)
 
 func (n *Node) initHandler(msg Message) error {
     recv_body, err := decodeMessageBody[InitMessageBody](msg.Body)
@@ -61,6 +64,19 @@ func (n *Node) topologyHandler(msg Message) error {
 }
 
 func (n *Node) broadcastHandler(msg Message) error {
+    // 1. reply ok
+    resp_body := BaseMessageBody {
+        Type: "broadcast_ok",
+    }
+    map_resp_body, err := encodeMessageBodyToMap(&resp_body)
+    if err != nil {
+        return err
+    }
+    if err := n.reply(msg, map_resp_body); err != nil {
+        return err
+    }
+
+    // 2. check the message
     recv_body, err := decodeMessageBody[BroadcastMessageBody](msg.Body)
     if err != nil {
         return err
@@ -76,36 +92,49 @@ func (n *Node) broadcastHandler(msg Message) error {
 
     n.log("Received message: %v\n", recv_body.Message)
 
+    // 3. gossip to neighbors
     gossip_body := BroadcastMessageBody{
         BaseMessageBody: BaseMessageBody{ Type: "broadcast" },
         Message: recv_body.Message,
     }
-    raw_gossip_body, err := json.Marshal(&gossip_body)
+    map_gossip_body, err := encodeMessageBodyToMap(&gossip_body)
     if err != nil {
         return err
     }
+
+    unacked_neighbors := make(map[string]struct{})
+    unacked_lock := new(sync.Mutex)
 
     for _, neighbor := range n.neighbors {
         if neighbor == msg.Src {
             continue
         }
-        n.send(neighbor, raw_gossip_body)
+        unacked_neighbors[neighbor] = struct{}{}
     }
 
-    // don't reply to messages from other server nodes
-    if recv_body.MsgId == nil {
-        return nil
+    // retry loop
+    for len(unacked_neighbors) > 0 {
+        for dest := range unacked_neighbors {
+            n.rpc(dest, map_gossip_body, func(msg Message) error {
+                recv_body, err := decodeMessageBody[BaseMessageBody](msg.Body)
+                if err != nil {
+                    return err
+                }
+
+                if recv_body.Type == "broadcast_ok" {
+                    unacked_lock.Lock()
+                    delete(unacked_neighbors, dest)
+                    unacked_lock.Unlock()
+                }
+
+                return nil
+            })
+        }
+
+        time.Sleep(time.Second)
     }
 
-    resp_body := BaseMessageBody {
-        Type: "broadcast_ok",
-    }
-    map_resp_body, err := encodeMessageBodyToMap(&resp_body)
-    if err != nil {
-        return err
-    }
-
-    return n.reply(msg, map_resp_body)
+    return nil
 }
 
 func (n *Node) readHandler(msg Message) error {

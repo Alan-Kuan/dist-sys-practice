@@ -17,6 +17,7 @@ type Node struct {
     logLock         *sync.Mutex
 
     handlers        map[string]Handler
+    callbacks       map[int]Handler
     wg              *sync.WaitGroup
 
     neighbors       []string
