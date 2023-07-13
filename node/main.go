@@ -58,6 +58,10 @@ func (n *Node) Run() error {
             }
         }()
     }
+    if err := scanner.Err(); err != nil {
+        return err
+    }
+
     n.wg.Wait()
 
     return nil
