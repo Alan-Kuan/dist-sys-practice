@@ -131,12 +131,8 @@ func makeBroadcastHandler(n *broadcastNode) node.Handler {
 
 func makeReadHandler(n *broadcastNode) node.Handler {
     return func (msg node.Message) error {
-        messages := make([]any, 0)
-
         n.messagesLock.Lock()
-        for message := range n.messages {
-            messages = append(messages, message)
-        }
+        messages := utils.MapToSlice(n.messages)
         n.messagesLock.Unlock()
 
         resp_body := readMessageBody{
