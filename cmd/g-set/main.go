@@ -19,9 +19,9 @@ func main() {
     n.On("replicate", makeReplicateMessageHandler(n))
 
     n.every(5, func () {
-        n.messagesLock.RLock()
-        messages := utils.MapToSlice(&n.messages)
-        n.messagesLock.RUnlock()
+        n.crdtLock.RLock()
+        messages := n.crdt.read()
+        n.crdtLock.RUnlock()
 
         my_id := n.GetNodeId()
         for _, curr_id := range n.GetNodeIds() {
@@ -50,8 +50,8 @@ func main() {
 func newGSetNode() *gSetNode {
     n := &gSetNode{
         Node: node.NewNode(),
-        messages: make(map[any]struct{}),
-        messagesLock: new(sync.RWMutex),
+        crdt: *newGSet(),
+        crdtLock: new(sync.RWMutex),
     }
     return n
 }
@@ -79,7 +79,9 @@ func makeAddMessageHandler(n *gSetNode) node.Handler {
             return err
         }
 
-        n.messages[recv_body.Element] = struct{}{}
+        n.crdtLock.Lock()
+        n.crdt.add(recv_body.Element)
+        n.crdtLock.Unlock()
 
         resp_body := node.BaseMessageBody{
             Type: "add_ok",
@@ -98,9 +100,9 @@ func makeAddMessageHandler(n *gSetNode) node.Handler {
 
 func makeReadMessageHandler(n *gSetNode) node.Handler {
     return func (msg node.Message) error {
-        n.messagesLock.RLock()
-        messages := utils.MapToSlice(&n.messages)
-        n.messagesLock.RUnlock()
+        n.crdtLock.RLock()
+        messages := n.crdt.read()
+        n.crdtLock.RUnlock()
 
         resp_body := readMessageBody{
             BaseMessageBody: node.BaseMessageBody{ Type: "read_ok" },
@@ -125,11 +127,9 @@ func makeReplicateMessageHandler(n *gSetNode) node.Handler {
             return err
         }
 
-        n.messagesLock.Lock()
-        for _, message := range recv_body.Value {
-            n.messages[message] = struct{}{}
-        }
-        n.messagesLock.Unlock()
+        n.crdtLock.Lock()
+        n.crdt.merge(recv_body.Value)
+        n.crdtLock.Unlock()
 
         return nil
     }

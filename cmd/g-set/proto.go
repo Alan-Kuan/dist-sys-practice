@@ -9,13 +9,17 @@ import (
 type gSetNode struct {
     *node.Node
     periodicTasks   []periodicTask
-    messages        map[any]struct{}  // work as a set
-    messagesLock    *sync.RWMutex
+    crdt            gSet
+    crdtLock        *sync.RWMutex
 }
 
 type periodicTask struct {
     interval    int
     callback    func()
+}
+
+type gSet struct {
+    set map[any]struct{}  // work as a set
 }
 
 type addMessageBody struct {
