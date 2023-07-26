@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sync"
+    "sync"
+
+    "alan-kuan/dist-sys-practice/pkg/utils"
 )
 
 func NewNode() *Node {
@@ -15,17 +17,47 @@ func NewNode() *Node {
         handlers: make(map[string]Handler),
         callbacks: make(map[int]Handler),
         wg: new(sync.WaitGroup),
-        messages: make(map[any]struct{}),
-        messagesLock: new(sync.Mutex),
     }
 
-    n.handlers["init"] = n.initHandler
-    n.handlers["echo"] = n.echoHandler
-    n.handlers["topology"] = n.topologyHandler
-    n.handlers["broadcast"] = n.broadcastHandler
-    n.handlers["read"] = n.readHandler
+    n.On("init", func (msg Message) error {
+        recv_body, err := utils.DecodeMessageBody[initMessageBody](msg.Body)
+        if err != nil {
+            return err
+        }
+
+        n.nodeId = recv_body.NodeId
+        n.nodeIds = recv_body.NodeIds
+
+        resp_body := BaseMessageBody {
+            Type: "init_ok",
+        }
+        map_resp_body, err := utils.EncodeMessageBodyToMap(&resp_body)
+        if err != nil {
+            return err
+        }
+
+        return n.Reply(msg, map_resp_body)
+    })
 
     return n
+}
+
+func (n *Node) GetNodeId() string {
+    return n.nodeId
+}
+
+func (n *Node) Log(msg string, a ...any) {
+    n.logLock.Lock()
+    fmt.Fprintf(os.Stderr, msg, a...)
+    n.logLock.Unlock()
+}
+
+func (n *Node) On(msg_type string, handler Handler) error {
+    if _, exists := n.handlers[msg_type]; exists {
+        return fmt.Errorf("Handler of this message type already exists.")
+    }
+    n.handlers[msg_type] = handler
+    return nil
 }
 
 func (n *Node) Run() error {
@@ -38,7 +70,7 @@ func (n *Node) Run() error {
             return err
         }
 
-        recv_body, err := decodeMessageBody[BaseMessageBody](recv_msg.Body)
+        recv_body, err := utils.DecodeMessageBody[BaseMessageBody](recv_msg.Body)
         if err != nil {
             return err
         }
@@ -46,9 +78,11 @@ func (n *Node) Run() error {
         var handler Handler
 
         if recv_body.InReplyTo != nil {
+            // handle a reply message
             handler, _ = n.callbacks[*recv_body.InReplyTo]
         }
         if handler == nil {
+            // handle a new message
             handler, _ = n.handlers[recv_body.Type]
         }
         if handler == nil {
@@ -61,7 +95,7 @@ func (n *Node) Run() error {
             defer n.wg.Done()
 
             if err := handler(recv_msg); err != nil {
-                n.log("An error occurred when handling '%s' message: %s\n",
+                n.Log("An error occurred when handling '%s' message: %s\n",
                     recv_body.Type, err)
             }
         }()
@@ -75,7 +109,7 @@ func (n *Node) Run() error {
     return nil
 }
 
-func (n *Node) rpc(dest string, map_body *map[string]any, handler Handler) error {
+func (n *Node) Rpc(dest string, map_body *map[string]any, handler Handler) error {
     n.nextMsgIdLock.Lock()
     msg_id := n.nextMsgId
     n.nextMsgId++
@@ -92,14 +126,8 @@ func (n *Node) rpc(dest string, map_body *map[string]any, handler Handler) error
     return n.send(dest, raw_body)
 }
 
-func (n *Node) log(msg string, a ...any) {
-    n.logLock.Lock()
-    fmt.Fprintf(os.Stderr, msg, a...)
-    n.logLock.Unlock()
-}
-
-func (n *Node) reply(recv_msg Message, map_resp_body *map[string]any) error {
-    recv_body, err := decodeMessageBody[BaseMessageBody](recv_msg.Body)
+func (n *Node) Reply(recv_msg Message, map_resp_body *map[string]any) error {
+    recv_body, err := utils.DecodeMessageBody[BaseMessageBody](recv_msg.Body)
     if err != nil {
         return err
     }
