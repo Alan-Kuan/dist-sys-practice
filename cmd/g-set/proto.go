@@ -10,7 +10,7 @@ type gSetNode struct {
     *node.Node
     periodicTasks   []periodicTask
     messages        map[any]struct{}  // work as a set
-    messagesLock    *sync.Mutex
+    messagesLock    *sync.RWMutex
 }
 
 type periodicTask struct {

@@ -19,9 +19,9 @@ func main() {
     n.On("replicate", makeReplicateMessageHandler(n))
 
     n.every(5, func () {
-        n.messagesLock.Lock()
+        n.messagesLock.RLock()
         messages := utils.MapToSlice(n.messages)
-        n.messagesLock.Unlock()
+        n.messagesLock.RUnlock()
 
         my_id := n.GetNodeId()
         for _, curr_id := range n.GetNodeIds() {
@@ -51,7 +51,7 @@ func newGSetNode() *gSetNode {
     n := &gSetNode{
         Node: node.NewNode(),
         messages: make(map[any]struct{}),
-        messagesLock: new(sync.Mutex),
+        messagesLock: new(sync.RWMutex),
     }
     return n
 }
@@ -98,9 +98,9 @@ func makeAddMessageHandler(n *gSetNode) node.Handler {
 
 func makeReadMessageHandler(n *gSetNode) node.Handler {
     return func (msg node.Message) error {
-        n.messagesLock.Lock()
+        n.messagesLock.RLock()
         messages := utils.MapToSlice(n.messages)
-        n.messagesLock.Unlock()
+        n.messagesLock.RUnlock()
 
         resp_body := readMessageBody{
             BaseMessageBody: node.BaseMessageBody{ Type: "read_ok" },

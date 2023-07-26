@@ -12,7 +12,7 @@ type broadcastNode struct {
     neighbors       []string
     
     messages        map[any]struct{}  // work as a set
-    messagesLock    *sync.Mutex
+    messagesLock    *sync.RWMutex
 }
 
 type topologyMessageBody struct {
