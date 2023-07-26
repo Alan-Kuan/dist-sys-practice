@@ -20,7 +20,7 @@ func main() {
 
     n.every(5, func () {
         n.messagesLock.RLock()
-        messages := utils.MapToSlice(n.messages)
+        messages := utils.MapToSlice(&n.messages)
         n.messagesLock.RUnlock()
 
         my_id := n.GetNodeId()
@@ -99,7 +99,7 @@ func makeAddMessageHandler(n *gSetNode) node.Handler {
 func makeReadMessageHandler(n *gSetNode) node.Handler {
     return func (msg node.Message) error {
         n.messagesLock.RLock()
-        messages := utils.MapToSlice(n.messages)
+        messages := utils.MapToSlice(&n.messages)
         n.messagesLock.RUnlock()
 
         resp_body := readMessageBody{
