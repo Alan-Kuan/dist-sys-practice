@@ -46,6 +46,10 @@ func (n *Node) GetNodeId() string {
     return n.nodeId
 }
 
+func (n *Node) GetNodeIds() []string {
+    return n.nodeIds
+}
+
 func (n *Node) Log(msg string, a ...any) {
     n.logLock.Lock()
     fmt.Fprintf(os.Stderr, msg, a...)
@@ -123,7 +127,7 @@ func (n *Node) Rpc(dest string, map_body *map[string]any, handler Handler) error
         return err
     }
 
-    return n.send(dest, raw_body)
+    return n.Send(dest, raw_body)
 }
 
 func (n *Node) Reply(recv_msg Message, map_resp_body *map[string]any) error {
@@ -144,10 +148,10 @@ func (n *Node) Reply(recv_msg Message, map_resp_body *map[string]any) error {
         return err
     }
 
-    return n.send(recv_msg.Src, raw_resp_body)
+    return n.Send(recv_msg.Src, raw_resp_body)
 }
 
-func (n *Node) send(dest string, raw_resp_body json.RawMessage) error {
+func (n *Node) Send(dest string, raw_resp_body json.RawMessage) error {
     resp_msg := Message{
         Src: n.nodeId,
         Dest: dest,

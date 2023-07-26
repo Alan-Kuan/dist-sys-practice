@@ -28,3 +28,13 @@ func EncodeMessageBodyToMap[B any](body *B) (*map[string]any, error) {
 
     return &map_body, nil
 }
+
+func MapToSlice(m map[any]struct{}) []any {
+    s := make([]any, 0)
+
+    for e := range m {
+        s = append(s, e)
+    }
+
+    return s
+}

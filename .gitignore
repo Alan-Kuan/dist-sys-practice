@@ -1,2 +1,4 @@
 echo
 broadcast
+g-set
+!cmd/*
