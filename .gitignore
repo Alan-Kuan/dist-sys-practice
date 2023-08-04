@@ -1,4 +1,5 @@
 echo
 broadcast
 g-set
+g-counter
 !cmd/*
